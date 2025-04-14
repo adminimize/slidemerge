@@ -59,27 +59,28 @@
   }
 </script>
 
+<!-- The drop zone component for this specific area -->
 <div 
-  class="border-2 border-dashed rounded-lg p-8 text-center transition-colors"
-  class:border-blue-400={dragActive}
-  class:border-gray-300={!dragActive}
-  class:bg-blue-50={dragActive}
+  class="border-2 border-dashed rounded-lg p-8 text-center transition-colors min-h-[240px] flex items-center justify-center"
+  class:border-blue-500={dragActive}
+  class:border-gray-600={!dragActive}
+  class:bg-gray-700={dragActive}
   ondragenter={handleDragEnter}
   ondragover={handleDragOver}
   ondragleave={handleDragLeave}
   ondrop={handleDrop}
 >
   <div class="flex flex-col items-center justify-center gap-4">
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3-3m0 0l3 3m-3-3v12" />
     </svg>
     
-    <div class="text-lg font-medium text-gray-700">
-      Drag & drop files here
+    <div class="text-lg font-medium text-gray-300">
+      Drop files for local processing
     </div>
     
-    <p class="text-sm text-gray-500">
-      Supports PDF and image files (JPG, PNG, etc.)
+    <p class="text-sm text-gray-400">
+      All processing happens directly in your browser - no uploads
     </p>
     
     <label class="mt-2">

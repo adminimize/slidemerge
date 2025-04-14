@@ -1,12 +1,12 @@
-# Slide Merge
+# slide merge
 
-Slide Merge is a web-based tool that allows you to merge multiple presentation files (PPT, PPTX, PDF) into a single PPTX file, with all processing happening entirely on the client-side (no server uploads).
+slide merge is a web-based tool that allows you to combine PDF documents and images into a single PPTX file, with all processing happening entirely in your browser (nothing uploads to any server).
 
 ## Features
 
-- Upload multiple presentation files via drag-and-drop or file selector
-- Process files entirely client-side (no server uploads)
-- Extract and display slides for review
+- Upload PDF documents and images via drag-and-drop or file selector
+- Process files entirely client-side (complete privacy protection)
+- Extract and display PDF pages for review
 - Reorder slides with drag-and-drop functionality
 - Select/deselect slides for inclusion in the final presentation
 - Merge selected slides into a single PPTX file
@@ -19,10 +19,8 @@ Slide Merge is a web-based tool that allows you to merge multiple presentation f
 - Styling: TailwindCSS
 - PWA Support: Enabled for offline capabilities
 - Key Libraries:
-  - SheetJS (reading/writing Office files)
   - pdf.js (PDF processing)
   - pptxgenjs (PPTX creation)
-  - JSZip (handling PPTX files)
   - FileSaver.js (downloading)
 
 ## Getting Started
@@ -36,8 +34,8 @@ Slide Merge is a web-based tool that allows you to merge multiple presentation f
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/slide-merge.git
-cd slide-merge
+git clone https://github.com/adminimize/slidemerge.git
+cd slidemerge
 
 # Install dependencies
 bun install
@@ -59,7 +57,7 @@ The build output will be in the `build` directory.
 ## Project Structure
 
 ```
-slide-merge/
+slidemerge/
 ├── src/
 │   ├── lib/
 │   │   ├── components/  # UI components
@@ -72,51 +70,39 @@ slide-merge/
 
 ## Usage
 
-1. Upload your presentation files (PPT, PPTX, PDF)
-2. Review and rearrange the extracted slides
-3. Select/deselect slides as needed
+1. Upload your PDF documents and images
+2. Review and rearrange the extracted pages
+3. Select/deselect pages as needed
 4. Click "Merge & Download" to create and download the final presentation
 
 ## Implementation Details
 
-### Current Implementation
-The current version uses placeholder slide representations and generates a new PPTX with simulated content. It demonstrates the UI flow and user experience without implementing the complex slide extraction logic.
+### PDF Processing
+- Uses PDF.js to render each page to a canvas
+- Extracts the rendered page as an image at 1920x1080 resolution
+- Maintains aspect ratio and properly positions content
+- Limited to first 50 pages for large PDFs to prevent memory issues
 
-### Future Enhancement Plan
-For a full implementation that preserves actual slide content:
+### Image Processing
+- Supports common image formats (JPG, PNG, GIF, etc.)
+- Maintains aspect ratio and properly positions images in slides
 
-1. **For PDF files**:
-   - Use PDF.js to render each page to a canvas
-   - Extract the rendered page as an image at 1920x1080 resolution
-
-2. **For PPTX files**:
-   - Use JSZip to extract the package contents
-   - Parse slide XML and related assets
-   - Render slide content to canvas using the extracted assets
-   - Convert canvas to image at 1920x1080 resolution
-
-3. **For PPT files**:
-   - Use a dedicated PPT parser library
-   - Convert each slide to an image representation
-
-4. **Merge Process**:
-   - Create a new PPTX
-   - Add each extracted slide image as a full-slide image
-   - Preserve slide notes if possible
-   - Add metadata about the source slide
-
-This enhancement would require significant client-side processing but would result in a more faithful representation of the original slides.
+### Merge Process
+- Creates a new PPTX using pptxgenjs
+- Adds each extracted page/image as a full-slide image
+- Preserves metadata about the source in slide notes
+- Optimizes image quality for the final presentation
 
 ## Limitations
 
-- Currently, the slide content extraction is simplified and only demonstrates the concept
-- For a production-ready version, more robust extraction and conversion logic would be needed
-- Large presentations might cause performance issues in the browser
+- Large PDFs may cause performance issues in the browser (limited to first 50 pages)
+- PowerPoint files (PPT/PPTX) are not supported
+- High-resolution images may use significant memory when processing
 
 ## License
 
 MIT
 
-## Acknowledgments
+## Copyright
 
-This project was created as a proof of concept for a client-side presentation merger.
+© adminimize, 2025

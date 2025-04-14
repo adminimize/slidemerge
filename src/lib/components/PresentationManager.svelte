@@ -87,16 +87,16 @@
 {#if presentations.length > 0}
   <div class="mt-8">
     <div class="flex justify-between items-center mb-4">
-      <h2 class="text-lg font-medium text-gray-700">Presentation Manager</h2>
+      <h2 class="text-lg font-medium text-gray-200">Presentation Manager</h2>
       <div class="space-x-2">
         <button 
           onclick={selectAll} 
-          class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
+          class="px-3 py-1 text-sm bg-blue-800 text-blue-200 rounded hover:bg-blue-700">
           Select All
         </button>
         <button 
           onclick={deselectAll} 
-          class="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200">
+          class="px-3 py-1 text-sm bg-gray-700 text-gray-300 rounded hover:bg-gray-600">
           Deselect All
         </button>
       </div>
@@ -105,15 +105,16 @@
     <div bind:this={presentationsContainer} class="space-y-4">
       {#each presentations as presentation (presentation.id)}
         <div 
-          class="border rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-all p-4"
-          class:border-blue-400={presentation.selected}
-          class:border-gray-200={!presentation.selected}
-          class:bg-blue-50={presentation.selected}
+          class="border rounded-lg overflow-hidden shadow-md transition-all p-4"
+          class:border-blue-500={presentation.selected}
+          class:border-gray-700={!presentation.selected}
+          class:bg-gray-700={presentation.selected}
+          class:bg-gray-800={!presentation.selected}
           data-id={presentation.id}
         >
           <div class="flex items-center gap-4">
             <!-- Drag handle -->
-            <div class="drag-handle cursor-move p-2 -m-2 text-gray-400 hover:text-gray-600">
+            <div class="drag-handle cursor-move p-2 -m-2 text-gray-400 hover:text-gray-300">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
               </svg>
@@ -122,8 +123,10 @@
             <!-- Thumbnail preview -->
             <div 
               class="w-24 h-24 flex-shrink-0 flex items-center justify-center border rounded"
-              class:bg-white={!presentation.selected}
-              class:bg-blue-50={presentation.selected}
+              class:bg-gray-800={!presentation.selected}
+              class:bg-gray-700={presentation.selected}
+              class:border-gray-600={!presentation.selected}
+              class:border-blue-400={presentation.selected}
             >
               {#if presentation.thumbnail && !presentation.thumbnail.includes('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0g')}
                 <!-- Actual thumbnail from PDF or image -->
@@ -135,7 +138,7 @@
               {:else}
                 <!-- Placeholder for slides without real thumbnails -->
                 <div class="text-center">
-                  <div class="text-xs text-gray-500 mt-1">
+                  <div class="text-xs text-gray-400 mt-1">
                     {presentation.fileType.toUpperCase()}
                   </div>
                 </div>
@@ -144,8 +147,8 @@
             
             <!-- File information -->
             <div class="flex-grow">
-              <h3 class="font-medium text-gray-800">{presentation.fileName}</h3>
-              <p class="text-sm text-gray-500 mt-1">
+              <h3 class="font-medium text-gray-200">{presentation.fileName}</h3>
+              <p class="text-sm text-gray-400 mt-1">
                 {presentation.slides.length} slides • {presentation.fileType.toUpperCase()}
               </p>
             </div>
@@ -154,11 +157,11 @@
             <div 
               class="w-6 h-6 rounded-full flex items-center justify-center cursor-pointer transition-all flex-shrink-0"
               class:bg-blue-600={presentation.selected}
-              class:bg-white={!presentation.selected}
+              class:bg-gray-700={!presentation.selected}
               class:text-white={presentation.selected}
-              class:text-gray-500={!presentation.selected}
+              class:text-gray-400={!presentation.selected}
               class:border={!presentation.selected}
-              class:border-gray-300={!presentation.selected}
+              class:border-gray-500={!presentation.selected}
               class:shadow-sm={presentation.selected}
               onclick={() => toggleSelection(presentation.id)}
             >

@@ -7,11 +7,12 @@
     merge: void
   }>();
   
-  const { presentations = [] } = $props<{ presentations?: PresentationGroup[] }>();
+  const { presentations = [], merging = false } = $props<{ 
+    presentations?: PresentationGroup[], 
+    merging?: boolean 
+  }>();
   
-  // Internal state for merging indicator
-  let merging = $state(false);
-  
+  // We'll use the prop value instead of local state
   let selectedCount = $derived(presentations.filter((presentation: PresentationGroup) => presentation.selected).length);
   let totalSlides = $derived(presentations.reduce((total: number, presentation: PresentationGroup) => {
     if (presentation.selected) {
@@ -36,26 +37,18 @@
   
   function handleMerge() {
     if (!canMerge) return;
-    
-    merging = true;
     dispatch('merge');
-    
-    // Reset the merging state after a reasonable timeout
-    // This ensures the spinner doesn't run forever if something goes wrong
-    setTimeout(() => {
-      merging = false;
-    }, 10000);
   }
   
   // Listen for the custom event when merge is complete
   function handleMergeComplete() {
-    merging = false;
+    // This event is handled by the parent now
   }
 </script>
 
-<div class="mt-6 bg-white p-4 rounded-lg border shadow-sm">
+<div class="mt-6 bg-gray-800 p-4 rounded-lg border border-gray-700 shadow-md">
   <!-- Implementation note banner -->
-  <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
+  <div class="mb-4 p-3 bg-gray-700 border border-gray-600 rounded-md text-sm text-gray-300">
     <p class="font-medium">Implementation Notes:</p>
     <p class="mt-1">
       • PDF files are fully supported with real page extraction (limited to first 50 pages)
@@ -64,15 +57,15 @@
       • Image files (JPG, PNG, etc.) can be directly included as slides
     </p>
     <p class="mt-1">
-      • PowerPoint files (PPT, PPTX) are not supported - please use PowerPoint's built-in merge features for these
+      • PowerPoint files (PPT, PPTX) are not supported
     </p>
-    <p class="mt-2 text-xs">
+    <p class="mt-2 text-xs text-gray-400">
       <strong>Note:</strong> Processing large PDFs may be slow and memory-intensive. For best results, use PDFs with fewer pages.
     </p>
   </div>
 
   <div class="flex items-center justify-between">
-    <div class="text-gray-600">
+    <div class="text-gray-400">
       <p>
         <span class="font-medium">{selectedCount}</span> presentations selected
         ({totalSlides} total slides)
@@ -90,7 +83,7 @@
           Merging...
         </span>
       {:else}
-        Merge Selected Presentations
+        Merge & Download
       {/if}
     </button>
   </div>
