@@ -55,6 +55,11 @@ function isImageFile(fileType: string): boolean {
   return imageTypes.includes(fileType);
 }
 
+// Function to check if file is specifically a PNG
+function isPngFile(fileName: string): boolean {
+  return fileName.toLowerCase().endsWith('.png');
+}
+
 // Function to generate a unique ID
 export function generateId(): string {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
@@ -284,21 +289,100 @@ async function processImage(file: File): Promise<SlideItem> {
   try {
     // Read the image file
     const dataUrl = await readFileAsDataURL(file);
-    
-    // Create a slide item for the image
-    return {
-      id: generateId(),
-      file: file.name,
-      fileType: 'image',
-      index: 0,
-      thumbnail: dataUrl,
-      fullImage: dataUrl,
-      selected: true
-    };
+
+    // Create an image with dimensions for proper slide placement
+    return await createImageWithDimensions(file, dataUrl);
   } catch (error) {
     console.error('Error processing image file:', error);
     return createPlaceholderSlides(file, 'image', 1)[0];
   }
+}
+
+// Helper function to create image with dimensions
+async function createImageWithDimensions(file: File, dataUrl: string): Promise<SlideItem> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      console.log(`Image loaded: ${file.name}, dimensions: ${img.width}x${img.height}`);
+      
+      // Make sure we have valid dimensions
+      const width = img.width || 800; // Default width if we can't determine
+      const height = img.height || 600; // Default height if we can't determine
+      
+      // For thumbnails, we want to ensure we have a cleaner version that's not 
+      // the full high-res image to save memory
+      const thumbnailCanvas = document.createElement('canvas');
+      const MAX_THUMB_WIDTH = 300;
+      const MAX_THUMB_HEIGHT = 225;
+      
+      // Calculate thumbnail dimensions (maintain aspect ratio)
+      const ratio = width / height;
+      let thumbWidth, thumbHeight;
+      
+      if (ratio > 1) {
+        // Landscape
+        thumbWidth = Math.min(width, MAX_THUMB_WIDTH);
+        thumbHeight = thumbWidth / ratio;
+      } else {
+        // Portrait
+        thumbHeight = Math.min(height, MAX_THUMB_HEIGHT);
+        thumbWidth = thumbHeight * ratio;
+      }
+      
+      thumbnailCanvas.width = thumbWidth;
+      thumbnailCanvas.height = thumbHeight;
+      
+      // Draw the image at the smaller size
+      const ctx = thumbnailCanvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, thumbWidth, thumbHeight);
+        ctx.drawImage(img, 0, 0, thumbWidth, thumbHeight);
+      }
+      
+      // Generate the thumbnail data URL
+      const thumbnailDataUrl = thumbnailCanvas.toDataURL('image/jpeg', 0.8);
+      
+      resolve({
+        id: generateId(),
+        file: file.name,
+        fileType: 'image',
+        index: 0,
+        thumbnail: thumbnailDataUrl, // Use the smaller thumbnail
+        fullImage: dataUrl, // Keep the original for the slide
+        selected: true,
+        dimensions: {
+          width: width,
+          height: height,
+          scaledWidth: width,
+          scaledHeight: height
+        }
+      });
+    };
+    img.onerror = (err) => {
+      // Log the error for debugging
+      console.error(`Error loading image ${file.name}:`, err);
+      
+      // Fallback if image loading fails
+      resolve({
+        id: generateId(),
+        file: file.name,
+        fileType: 'image',
+        index: 0,
+        thumbnail: dataUrl,
+        fullImage: dataUrl,
+        selected: true,
+        // Add default dimensions even on error
+        dimensions: {
+          width: 800,
+          height: 600,
+          scaledWidth: 800,
+          scaledHeight: 600
+        }
+      });
+    };
+    img.src = dataUrl;
+  });
 }
 
 // Helper function to read a file as DataURL
@@ -329,6 +413,14 @@ export async function mergeSlides(slides: SlideItem[]): Promise<Blob> {
       pptxgen = pptxgenModule.default;
     }
     
+    // Log the slides for debugging
+    console.log('Processing slides:', selectedSlides.map(s => ({
+      file: s.file,
+      type: s.fileType,
+      hasDimensions: !!s.dimensions,
+      startOfImage: s.fullImage?.substring(0, 50)
+    })));
+
     // Create a new PowerPoint presentation
     const pptx = new pptxgen();
     
@@ -342,43 +434,55 @@ export async function mergeSlides(slides: SlideItem[]): Promise<Blob> {
       // Create a new slide
       const pptxSlide = pptx.addSlide();
       
-      if ((slide.fileType === 'image' || slide.fileType === 'pdf') && slide.fullImage && 
-          !slide.fullImage.startsWith('data:image/png;base64,iVBORw0KGgo')) {
-        // For image and PDF slides with actual content
+      // Create a notes string with attribution
+      let notesText = `Created with slidemerge\n\nSource: ${slide.file}`;
+      if (slide.fileType === 'pdf') {
+        notesText += ` (Page ${slide.index + 1})`;
+      }
+      
+      // Add the notes to the slide
+      pptxSlide.addNotes(notesText);
+      
+      // The placeholder image starts with a specific base64 pattern
+      const isPlaceholder = slide.fullImage && 
+        slide.fullImage.startsWith('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==');
+      
+      // Fill the entire slide with a white background first
+      pptxSlide.background = { color: "FFFFFF" };
+      
+      // Calculate positioning to center the content
+      // Standard PowerPoint dimensions in inches (16:9 ratio)
+      const slideWidth = 10;  // PowerPoint uses ~10 inches for width in 16:9
+      const slideHeight = 5.625; // 10 * (9/16) = 5.625 inches height
+      
+      // Get content dimensions if available, otherwise use default positioning
+      let x = 0;
+      let y = 0;
+      let w = slideWidth;
+      let h = slideHeight;
+      
+      // If we have dimensions, use them to calculate proper positioning
+      if (slide.dimensions) {
+        // Calculate aspect ratio
+        const contentRatio = slide.dimensions.width / slide.dimensions.height;
         
-        // Fill the entire slide with a white background first
-        pptxSlide.background = { color: "FFFFFF" };
-        
-        // Calculate positioning to center the content
-        // Standard PowerPoint dimensions in inches (16:9 ratio)
-        const slideWidth = 10;  // PowerPoint uses ~10 inches for width in 16:9
-        const slideHeight = 5.625; // 10 * (9/16) = 5.625 inches height
-        
-        // Get content dimensions if available, otherwise use default positioning
-        let x = 0;
-        let y = 0;
-        let w = slideWidth;
-        let h = slideHeight;
-        
-        if (slide.dimensions) {
-          // Calculate aspect ratio
-          const contentRatio = slide.dimensions.width / slide.dimensions.height;
-          
-          if (contentRatio > (16/9)) {
-            // Content is wider than slide, fill width and center vertically
-            w = slideWidth;
-            h = slideWidth / contentRatio;
-            x = 0;
-            y = (slideHeight - h) / 2;
-          } else {
-            // Content is taller than slide, fill height and center horizontally
-            h = slideHeight;
-            w = slideHeight * contentRatio;
-            x = (slideWidth - w) / 2;
-            y = 0;
-          }
+        if (contentRatio > (16/9)) {
+          // Content is wider than slide, fill width and center vertically
+          w = slideWidth;
+          h = slideWidth / contentRatio;
+          x = 0;
+          y = (slideHeight - h) / 2;
+        } else {
+          // Content is taller than slide, fill height and center horizontally
+          h = slideHeight;
+          w = slideHeight * contentRatio;
+          x = (slideWidth - w) / 2;
+          y = 0;
         }
-        
+      }
+      
+      // If the slide is not a placeholder, add the image
+      if (!isPlaceholder && slide.fullImage) {
         // Add the image to the slide with calculated dimensions
         pptxSlide.addImage({
           data: slide.fullImage,
@@ -387,99 +491,17 @@ export async function mergeSlides(slides: SlideItem[]): Promise<Blob> {
           w: w,
           h: h
         });
-        
-        // Add a small source indicator at the bottom
-        let sourceText = `Source: ${slide.file}`;
-        if (slide.fileType === 'pdf') {
-          sourceText += ` (Page ${slide.index + 1})`;
-        }
-        
-        pptxSlide.addText(sourceText, {
-          x: 0.5,
-          y: 5.25,
-          w: 9,
-          h: 0.3,
-          fontSize: 8,
-          color: '999999',
-          italic: true,
-          align: pptx.AlignH.right
-        });
       } else {
-        // Fallback for unsupported content or placeholders
-        // Use the placeholder design for non-PDF files or if image extraction failed
-        // Add a slide background color based on file type
-        let bgColor;
-        switch (slide.fileType) {
-          case 'pdf':
-            bgColor = 'F5F5F5'; // Light gray for PDF
-            break;
-          case 'pptx':
-            bgColor = 'F0F8FF'; // Light blue for PPTX
-            break;
-          case 'ppt':
-            bgColor = 'FFF8E1'; // Light yellow for PPT
-            break;
-          default:
-            bgColor = 'FFFFFF'; // White for others
-        }
-        pptxSlide.background = { color: bgColor };
-        
-        // Add a title to simulate slide content
-        pptxSlide.addText(`Content from "${slide.file}"`, {
+        // This is a placeholder or error case, add a text message
+        pptxSlide.addText(`Content from "${slide.file}" could not be loaded`, {
           x: 0.5,
-          y: 0.5,
-          w: '90%',
-          h: 0.8,
-          fontSize: 24,
-          bold: true,
-          color: '363636',
-          fontFace: 'Arial'
-        });
-        
-        // Add placeholder content areas
-        pptxSlide.addText(`This slide represents slide #${slide.index + 1} from the original file`, {
-          x: 0.5,
-          y: 1.8,
-          w: '90%',
+          y: 2.5,
+          w: 9,
           h: 0.6,
           fontSize: 18,
           color: '666666',
-          fontFace: 'Arial'
-        });
-        
-        // Add simulated content area
-        pptxSlide.addShape(pptx.ShapeType.rect, {
-          x: 0.5,
-          y: 2.5,
-          w: 8.5,
-          h: 3.5,
-          fill: { color: 'FFFFFF' },
-          line: { color: 'CCCCCC', width: 1 }
-        });
-        
-        // Add placeholder text in content area
-        pptxSlide.addText('In a full implementation, this would contain an image of the original slide content', {
-          x: 1.0,
-          y: 3.5,
-          w: 7.5,
-          h: 1.5,
-          fontSize: 14,
-          color: '888888',
           fontFace: 'Arial',
-          italic: true,
           align: 'center'
-        });
-        
-        // Add a small source indicator at the bottom
-        pptxSlide.addText(`Source: ${slide.file} (Slide ${slide.index + 1})`, {
-          x: 0.5,
-          y: 6.5,
-          w: '90%',
-          h: 0.3,
-          fontSize: 8,
-          color: '999999',
-          italic: true,
-          align: 'right'
         });
       }
     }

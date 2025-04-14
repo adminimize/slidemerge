@@ -9,6 +9,7 @@
   let files = $state<File[]>([]);
   let presentations = $state<PresentationGroup[]>([]);
   let processing = $state(false);
+  let merging = $state(false);
   
   async function handleFilesSelected(event: CustomEvent<{ files: File[] }>) {
     const newFiles = event.detail.files;
@@ -45,7 +46,11 @@
   async function handleMerge() {
     try {
       const mergedPresentation = await mergePresentations(presentations);
-      downloadPresentation(mergedPresentation, 'merged_presentation.pptx');
+      await downloadPresentation(mergedPresentation, 'merged_presentation.pptx');
+      
+      // Find the MergeControl component and dispatch a custom event
+      const event = new CustomEvent('mergeComplete');
+      document.dispatchEvent(event);
     } catch (error) {
       console.error('Error merging presentations:', error);
       // Show error message to user (in a real app)
@@ -79,7 +84,10 @@
     <section>
       <PresentationManager presentations={presentations} on:reorderPresentations={handleReorderPresentations} />
       
-      <MergeControl presentations={presentations} on:merge={handleMerge} />
+      <MergeControl 
+        presentations={presentations} 
+        on:merge={handleMerge} 
+      />
     </section>
   {/if}
 </div>

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+  import Sortable from 'sortablejs';
   
   const dispatch = createEventDispatcher<{
     reorderSlides: { slides: SlideItem[] }
@@ -21,55 +22,67 @@
     };
   }
   
+  // Using mutable state with Svelte 5 runes
   let { slides } = $props<{ slides: SlideItem[] }>();
   
+  // Keep track of the Sortable instance
+  let sortableInstance: Sortable | null = null;
+  let slidesContainer: HTMLElement;
+  
+  // Initialize Sortable on mount
+  onMount(() => {
+    if (typeof window !== 'undefined' && slidesContainer) {
+      sortableInstance = Sortable.create(slidesContainer, {
+        animation: 150,
+        ghostClass: 'opacity-60',
+        chosenClass: 'shadow-lg',
+        dragClass: 'cursor-grabbing',
+        dataIdAttr: 'data-id',
+        handle: '.slide-handle', // Only allow dragging from the handle
+        onEnd: (evt) => {
+          // When drag ends, update the slides array
+          if (evt.oldIndex !== undefined && evt.newIndex !== undefined && evt.oldIndex !== evt.newIndex) {
+            // Use the actual DOM order after drag to get the correct order
+            const items = slidesContainer.querySelectorAll('[data-id]');
+            const itemIds = Array.from(items).map(item => item.getAttribute('data-id'));
+            
+            // Create a new array based on the new order of IDs
+            const reorderedSlides = itemIds.map(id => 
+              slides.find((slide: SlideItem) => slide.id === id)
+            ).filter(Boolean) as SlideItem[];
+            
+            // Dispatch the reordered slides to the parent
+            dispatch('reorderSlides', { slides: reorderedSlides });
+          }
+        }
+      });
+    }
+  });
+  
+  // Clean up on destroy
+  onDestroy(() => {
+    if (sortableInstance) {
+      sortableInstance.destroy();
+      sortableInstance = null;
+    }
+  });
+  
   function toggleSelection(id: string) {
-    slides = slides.map((slide: SlideItem) => 
+    const newSlides = slides.map((slide: SlideItem) => 
       slide.id === id ? { ...slide, selected: !slide.selected } : slide
     );
     
-    dispatch('reorderSlides', { slides });
-  }
-
-  function moveSlide(fromIndex: number, toIndex: number) {
-    if (fromIndex === toIndex) return;
-    
-    const newSlides = [...slides];
-    const [movedItem] = newSlides.splice(fromIndex, 1);
-    newSlides.splice(toIndex, 0, movedItem);
-    
-    slides = newSlides;
-    dispatch('reorderSlides', { slides });
-  }
-  
-  function handleDragStart(e: DragEvent, index: number) {
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', index.toString());
-    }
-  }
-  
-  function handleDragOver(e: DragEvent, index: number) {
-    e.preventDefault();
-    return false;
-  }
-  
-  function handleDrop(e: DragEvent, toIndex: number) {
-    e.preventDefault();
-    if (!e.dataTransfer) return;
-    
-    const fromIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
-    moveSlide(fromIndex, toIndex);
+    dispatch('reorderSlides', { slides: newSlides });
   }
   
   function selectAll() {
-    slides = slides.map((slide: SlideItem) => ({ ...slide, selected: true }));
-    dispatch('reorderSlides', { slides });
+    const newSlides = slides.map((slide: SlideItem) => ({ ...slide, selected: true }));
+    dispatch('reorderSlides', { slides: newSlides });
   }
   
   function deselectAll() {
-    slides = slides.map((slide: SlideItem) => ({ ...slide, selected: false }));
-    dispatch('reorderSlides', { slides });
+    const newSlides = slides.map((slide: SlideItem) => ({ ...slide, selected: false }));
+    dispatch('reorderSlides', { slides: newSlides });
   }
 </script>
 
@@ -91,26 +104,24 @@
       </div>
     </div>
     
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      {#each slides as slide, index}
+    <div bind:this={slidesContainer} class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      {#each slides as slide (slide.id)}
         <div 
-          class="border rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-all"
+          class="border rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-all cursor-grab"
           class:border-blue-400={slide.selected}
           class:border-gray-200={!slide.selected}
           class:bg-blue-50={slide.selected}
-          draggable="true"
-          ondragstart={(e) => handleDragStart(e, index)}
-          ondragover={(e) => handleDragOver(e, index)}
-          ondrop={(e) => handleDrop(e, index)}
+          data-id={slide.id}
         >
-          <div class="relative">
+          <div class="relative slide-handle">
             <div 
               class="w-full aspect-[4/3] flex items-center justify-center p-4"
               class:bg-white={!slide.selected}
               class:bg-blue-50={slide.selected}
             >
-              {#if slide.thumbnail && !slide.thumbnail.startsWith('data:image/png;base64,iVBORw0KGgo')}
-                <!-- Actual thumbnail from PDF -->
+              <!-- Check if this is a placeholder image -->
+              {#if slide.thumbnail && !slide.thumbnail.includes('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0g')}
+                <!-- Actual thumbnail from PDF or image -->
                 <img 
                   src={slide.thumbnail} 
                   alt={`Slide ${slide.index + 1} from ${slide.file}`}
@@ -128,6 +139,13 @@
                   </div>
                 </div>
               {/if}
+              
+              <!-- Tiny drag indicator -->
+              <div class="absolute top-2 left-2 text-gray-400 p-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
+              </div>
             </div>
             <div 
               class="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center cursor-pointer transition-all"

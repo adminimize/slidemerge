@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import type { SlideItem } from './SlideManager.svelte';
   import type { PresentationGroup } from './PresentationManager.svelte';
   
@@ -7,8 +7,9 @@
     merge: void
   }>();
   
-  let { presentations = [] } = $props<{ presentations?: PresentationGroup[] }>();
+  const { presentations = [] } = $props<{ presentations?: PresentationGroup[] }>();
   
+  // Internal state for merging indicator
   let merging = $state(false);
   
   let selectedCount = $derived(presentations.filter((presentation: PresentationGroup) => presentation.selected).length);
@@ -20,11 +21,35 @@
   }, 0));
   let canMerge = $derived(selectedCount > 0);
   
+  // Set up listeners for merge complete event
+  onMount(() => {
+    if (typeof document !== 'undefined') {
+      document.addEventListener('mergeComplete', handleMergeComplete);
+    }
+  });
+  
+  onDestroy(() => {
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('mergeComplete', handleMergeComplete);
+    }
+  });
+  
   function handleMerge() {
     if (!canMerge) return;
     
     merging = true;
     dispatch('merge');
+    
+    // Reset the merging state after a reasonable timeout
+    // This ensures the spinner doesn't run forever if something goes wrong
+    setTimeout(() => {
+      merging = false;
+    }, 10000);
+  }
+  
+  // Listen for the custom event when merge is complete
+  function handleMergeComplete() {
+    merging = false;
   }
 </script>
 
