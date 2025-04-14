@@ -51,7 +51,7 @@ export function getFileExtension(filename: string): string {
 
 // Function to check if file is an image
 function isImageFile(fileType: string): boolean {
-  const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+  const imageTypes = ['jpg', 'jpeg', 'png'];
   return imageTypes.includes(fileType);
 }
 
@@ -134,9 +134,9 @@ async function processPDF(file: File): Promise<SlideItem[]> {
     console.log(`PDF loaded: ${file.name}, pages: ${numPages}`);
     
     // Limit the number of pages to process to avoid memory issues
-    const maxPages = Math.min(numPages, 50); // Process at most 50 pages
-    if (numPages > 50) {
-      console.warn(`PDF has ${numPages} pages, only processing first 50 to avoid memory issues`);
+    const maxPages = Math.min(numPages, 100); // Process at most 100 pages
+    if (numPages > 100) {
+      console.warn(`PDF has ${numPages} pages, only processing first 100 to avoid memory issues`);
     }
 
     // Emit an initial progress event with total pages information
@@ -451,28 +451,34 @@ export async function mergeSlides(slides: SlideItem[]): Promise<Blob> {
     return new Blob([], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
   }
   
+  if (selectedSlides.length === 0) {
+    console.warn('No selected slides to merge');
+    return new Blob([], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+  }
+  
   try {
-    // Dynamically import pptxgenjs if needed
-    if (!pptxgen) {
-      const pptxgenModule = await import('pptxgenjs');
-      pptxgen = pptxgenModule.default;
-    }
+    // Always dynamically import pptxgenjs for each generation to ensure a fresh instance
+    console.log('Loading pptxgenjs dynamically');
+    const pptxgenModule = await import('pptxgenjs');
+    const pptxgenConstructor = pptxgenModule.default;
     
     // Log the slides for debugging
     console.log('Processing slides:', selectedSlides.map(s => ({
       file: s.file,
       type: s.fileType,
-      hasDimensions: !!s.dimensions,
-      startOfImage: s.fullImage?.substring(0, 50)
+      hasDimensions: !!s.dimensions
     })));
 
-    // Create a new PowerPoint presentation
-    const pptx = new pptxgen();
+    // Create a new PowerPoint presentation - always create a fresh instance
+    console.log('Creating new pptxgen instance');
+    const pptx = new pptxgenConstructor();
     
     // Set presentation properties
     pptx.layout = 'LAYOUT_16x9';
     pptx.author = 'Slide Merge';
     pptx.title = 'Merged Presentation';
+    
+    console.log(`Adding ${selectedSlides.length} slides to presentation`);
     
     // For each selected slide, add it to the presentation
     for (const slide of selectedSlides) {
@@ -551,8 +557,14 @@ export async function mergeSlides(slides: SlideItem[]): Promise<Blob> {
       }
     }
     
+    console.log('Generating PPTX file as blob...');
+    
     // Generate the PPTX file as a blob
-    return await pptx.writeFile({ outputType: 'blob' }) as Blob;
+    const result = await pptx.writeFile({ outputType: 'blob' } as any);
+    const blob = result as unknown as Blob;
+    console.log('PPTX blob generated, size:', blob.size);
+    
+    return blob;
   } catch (error) {
     console.error('Error generating PPTX:', error);
     // Return an empty blob if there's an error
@@ -567,16 +579,28 @@ export async function downloadPresentation(blob: Blob, filename: string): Promis
     return;
   }
   
+  // Validate that we have a real blob with content
+  if (!blob || blob.size === 0) {
+    console.error('Cannot download: Blob is empty or invalid');
+    throw new Error('Cannot download an empty file');
+  }
+  
   try {
+    console.log(`Downloading ${filename} (${blob.size} bytes)...`);
+    
     // Dynamically import file-saver if needed
     if (!saveAs) {
+      console.log('Loading file-saver dynamically');
       const fileSaverModule = await import('file-saver');
       saveAs = fileSaverModule.default || fileSaverModule.saveAs;
     }
     
+    // Download directly using the original blob
     saveAs(blob, filename);
+    console.log('Download triggered');
   } catch (error) {
     console.error('Error downloading file:', error);
+    throw error; 
   }
 }
 

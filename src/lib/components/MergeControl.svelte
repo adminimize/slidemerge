@@ -51,13 +51,13 @@
   <div class="mb-4 p-3 bg-gray-700 border border-gray-600 rounded-md text-sm text-gray-300">
     <p class="font-medium">Implementation Notes:</p>
     <p class="mt-1">
-      • PDF files are fully supported with real page extraction (limited to first 50 pages)
+      • PDF files are fully supported with real page extraction (limited to first 100 pages)
     </p>
     <p class="mt-1">
-      • Image files (JPG, PNG, etc.) can be directly included as slides
+      • Image files (JPG and PNG only) can be directly included as slides
     </p>
     <p class="mt-1">
-      • PowerPoint files (PPT, PPTX) are not supported
+      • PowerPoint files (PPT, PPTX) are not supported at this time
     </p>
     <p class="mt-2 text-xs text-gray-400">
       <strong>Note:</strong> Processing large PDFs may be slow and memory-intensive. For best results, use PDFs with fewer pages.
@@ -83,7 +83,7 @@
           Merging...
         </span>
       {:else}
-        Merge & Download
+        Download
       {/if}
     </button>
   </div>

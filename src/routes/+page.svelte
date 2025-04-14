@@ -69,7 +69,7 @@
     // Use the same validation and processing as regular file selection
     const validFiles = newFiles.filter(file => {
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
-      return ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(ext);
+      return ['pdf', 'jpg', 'jpeg', 'png'].includes(ext);
     });
     
     if (validFiles.length > 0) {
@@ -179,16 +179,51 @@
   async function handleMerge() {
     merging = true;
     try {
+      console.log('Starting presentation generation...');
+      console.log('Number of presentations:', presentations.length);
+      
+      // Count number of total slides being processed
+      const totalSlides = presentations.reduce((count, presentation) => {
+        if (presentation.selected) {
+          return count + presentation.slides.length;
+        }
+        return count;
+      }, 0);
+      
+      console.log('Total slides to process:', totalSlides);
+      
       const mergedPresentation = await mergePresentations(presentations);
-      await downloadPresentation(mergedPresentation, 'merged_presentation.pptx');
+      console.log('Presentation blob created, size:', mergedPresentation.size, 'type:', mergedPresentation.type);
+      
+      if (mergedPresentation.size === 0) {
+        console.error('Generated presentation has zero size. Aborting download.');
+        throw new Error('Failed to generate presentation (empty file)');
+      }
+      
+      // Create a truly unique filename with random component
+      const randomId = Math.floor(Math.random() * 1000000);
+      const filename = `slidemerge_${randomId}.pptx`;
+      
+      console.log('Initiating download with filename:', filename);
+      
+      try {
+        await downloadPresentation(mergedPresentation, filename);
+        console.log('Download completed without errors');
+      } catch (downloadError) {
+        console.error('Download failed:', downloadError);
+        throw downloadError;
+      }
       
       // Find the MergeControl component and dispatch a custom event
       const event = new CustomEvent('mergeComplete');
       if (browser) {  
         document.dispatchEvent(event);
+        console.log('Merge complete event dispatched');
       }
+      
+      console.log('Download process completed successfully');
     } catch (error) {
-      console.error('Error merging presentations:', error);
+      console.error('Error generating or downloading presentation:', error);
       // Show error message to user (in a real app)
     } finally {
       merging = false;
@@ -200,7 +235,6 @@
   <section class="mb-8">
     <h2 class="text-xl font-bold mb-4 text-gray-100">1. Add Your Files</h2>
     <p class="text-gray-300 mb-6">
-      <span class="bg-gray-700 px-2 py-1 rounded text-sm font-medium">📌 100% local processing</span> 
       Drop PDF documents and images anywhere on this page. Nothing is uploaded to any server.
     </p>
     <FileUpload on:filesSelected={handleFilesSelected} />

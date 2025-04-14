@@ -1,108 +1,57 @@
-# slide merge
+# Slide Merge
 
-slide merge is a web-based tool that allows you to combine PDF documents and images into a single PPTX file, with all processing happening entirely in your browser (nothing uploads to any server).
+A modern web application for merging presentation files into a single PowerPoint presentation. Built with Svelte 5 and designed to work entirely in your browser - no server uploads required.
 
 ## Features
 
-- Upload PDF documents and images via drag-and-drop or file selector
-- Process files entirely client-side (complete privacy protection)
-- Extract and display PDF pages for review
-- Reorder slides with drag-and-drop functionality
-- Select/deselect slides for inclusion in the final presentation
-- Merge selected slides into a single PPTX file
-- Download the final merged presentation
+- **Browser-Based Processing**: All file processing happens locally in your browser - your files never leave your device
+- **PDF Support**: Extract slides from PDF files (limited to first 100 pages)
+- **Image Support**: Directly include JPG and PNG images as slides
+- **Drag & Drop Interface**: Simple and intuitive file handling
+- **Progress Tracking**: Real-time progress updates for PDF processing
+- **Slide Organization**: Reorder and manage your slides before merging
+- **Modern UI**: Clean, responsive design with dark mode support
 
-## Technology Stack
+## Supported File Types
 
-- Frontend: Svelte 5 with runes for reactivity
-- Build: Vite + SvelteKit
-- Styling: TailwindCSS
-- PWA Support: Enabled for offline capabilities
-- Key Libraries:
-  - pdf.js (PDF processing)
-  - pptxgenjs (PPTX creation)
-  - FileSaver.js (downloading)
+- **PDF** (.pdf): Extract individual pages as slides (first 100 pages)
+- **Images** (.jpg, .jpeg, .png): Direct inclusion as slides
+- **Note**: PowerPoint files (PPT, PPTX) are not currently supported
 
 ## Getting Started
 
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) (>= 20.x)
-- [Bun](https://bun.sh/) (>= 1.0.0) or NPM/Yarn
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/adminimize/slidemerge.git
-cd slidemerge
-
-# Install dependencies
-bun install
-
-# Start development server
-bun run dev
-```
-
-Visit [http://localhost:5173/](http://localhost:5173/) in your browser.
-
-## Building for Production
-
-```bash
-bun run build
-```
-
-The build output will be in the `build` directory.
-
-## Project Structure
-
-```
-slidemerge/
-├── src/
-│   ├── lib/
-│   │   ├── components/  # UI components
-│   │   └── services/    # Core functionality
-│   ├── routes/          # SvelteKit routes/pages
-│   └── app.html         # HTML template
-├── static/              # Static assets
-└── ... (config files)
-```
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+4. Open your browser to `http://localhost:5173`
 
 ## Usage
 
-1. Upload your PDF documents and images
-2. Review and rearrange the extracted pages
-3. Select/deselect pages as needed
-4. Click "Merge & Download" to create and download the final presentation
+1. Add your files by dragging and dropping them onto the page or using the file picker
+2. Organize your slides using the drag-and-drop interface
+3. Click "Download" to generate and download your merged presentation
 
-## Implementation Details
+## Technical Notes
 
-### PDF Processing
-- Uses PDF.js to render each page to a canvas
-- Extracts the rendered page as an image at 1920x1080 resolution
-- Maintains aspect ratio and properly positions content
-- Limited to first 50 pages for large PDFs to prevent memory issues
+- Built with Svelte 5 and TypeScript
+- Uses PDF.js for PDF processing
+- Implements pptxgenjs for PowerPoint generation
+- Progressive Web App (PWA) ready
+- Responsive design for all screen sizes
 
-### Image Processing
-- Supports common image formats (JPG, PNG, GIF, etc.)
-- Maintains aspect ratio and properly positions images in slides
+## Browser Compatibility
 
-### Merge Process
-- Creates a new PPTX using pptxgenjs
-- Adds each extracted page/image as a full-slide image
-- Preserves metadata about the source in slide notes
-- Optimizes image quality for the final presentation
-
-## Limitations
-
-- Large PDFs may cause performance issues in the browser (limited to first 50 pages)
-- PowerPoint files (PPT/PPTX) are not supported
-- High-resolution images may use significant memory when processing
+Slide Merge works best in modern browsers that support the following features:
+- File System Access API
+- Web Workers
+- Canvas API
 
 ## License
 
-MIT
-
-## Copyright
-
-© adminimize, 2025
+MIT License - see LICENSE file for details

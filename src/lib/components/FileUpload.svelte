@@ -7,8 +7,8 @@
   
   let dragActive = $state(false);
   
-  // Define the accepted file types - removing PPT/PPTX
-  const acceptedFileTypes = '.pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg';
+  // Define the accepted file types - only PDF, JPG, and PNG
+  const acceptedFileTypes = '.pdf,.jpg,.jpeg,.png';
   
   function handleDragEnter(e: DragEvent) {
     e.preventDefault();
@@ -47,10 +47,10 @@
   }
   
   function validateAndDispatchFiles(newFiles: File[]) {
-    // Filter for only PDF and image files
+    // Filter for only PDF, JPG and PNG files
     const validFiles = newFiles.filter(file => {
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
-      return ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(ext);
+      return ['pdf', 'jpg', 'jpeg', 'png'].includes(ext);
     });
     
     if (validFiles.length > 0) {
