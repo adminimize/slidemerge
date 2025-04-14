@@ -2,6 +2,8 @@
 	import '../app.css';
 	import { injectAnalytics } from '@vercel/analytics/sveltekit'
 	import { createEventDispatcher } from 'svelte';
+
+	injectAnalytics();
 	
 	// Add page-level drag and drop handling
 	let dragActive = $state(false);
