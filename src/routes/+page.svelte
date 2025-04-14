@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { browser } from '$app/environment';
   import FileUpload from '$lib/components/FileUpload.svelte';
   import FileList from '$lib/components/FileList.svelte';
   import PresentationManager from '$lib/components/PresentationManager.svelte';
@@ -11,6 +12,55 @@
   let presentations = $state<PresentationGroup[]>([]);
   let processing = $state(false);
   let merging = $state(false);
+  // Add state to track processing progress for each file
+  let processingStatus = $state<Array<{ 
+    fileName: string, 
+    inProgress: boolean, 
+    progress: number, 
+    total: number 
+  }>>([]);
+
+  // Helper function to update processing progress
+  function updateProcessingProgress(fileName: string, progress: number, total: number) {
+    const existingStatusIndex = processingStatus.findIndex(status => status.fileName === fileName);
+    
+    if (existingStatusIndex >= 0) {
+      // Update existing status
+      processingStatus[existingStatusIndex].progress = progress;
+      processingStatus[existingStatusIndex].total = total;
+    } else {
+      // Add new status
+      processingStatus = [...processingStatus, {
+        fileName,
+        inProgress: true,
+        progress,
+        total
+      }];
+    }
+  }
+
+  // Helper function to mark processing as complete
+  function completeProcessing(fileName: string) {
+    const existingStatusIndex = processingStatus.findIndex(status => status.fileName === fileName);
+    
+    if (existingStatusIndex >= 0) {
+      // Mark as complete
+      processingStatus[existingStatusIndex].inProgress = false;
+      processingStatus[existingStatusIndex].progress = processingStatus[existingStatusIndex].total;
+    }
+  }
+
+  // Helper function to notify layout about file status
+  function notifyLayoutAboutFiles() {
+    if (browser) {
+      // Create and dispatch a custom event for the layout
+      const event = new CustomEvent('filesUpdated', {
+        detail: { hasFiles: files.length > 0 },
+        bubbles: true
+      });
+      document.dispatchEvent(event);
+    }
+  }
 
   // Handle page-level file drop events
   function handleFilesDroppedOnPage(event: Event) {
@@ -25,26 +75,70 @@
     if (validFiles.length > 0) {
       files = [...files, ...validFiles];
       processNewFiles(validFiles);
+      notifyLayoutAboutFiles();
+    }
+  }
+
+  // Listen for PDF processing progress events
+  function listenForProcessingEvents() {
+    if (browser) {
+      document.addEventListener('pdfProcessingProgress', (e: Event) => {
+        const customEvent = e as CustomEvent<{ 
+          fileName: string, 
+          pageNum: number, 
+          numPages: number 
+        }>;
+        const { fileName, pageNum, numPages } = customEvent.detail;
+        updateProcessingProgress(fileName, pageNum, numPages);
+      });
+      
+      document.addEventListener('pdfProcessingComplete', (e: Event) => {
+        const customEvent = e as CustomEvent<{ fileName: string }>;
+        completeProcessing(customEvent.detail.fileName);
+      });
     }
   }
 
   // Listen for files dropped anywhere on the page
   onMount(() => {
-    document.addEventListener('filesDroppedOnPage', handleFilesDroppedOnPage);
+    if (browser) {
+      document.addEventListener('filesDroppedOnPage', handleFilesDroppedOnPage);
+      listenForProcessingEvents();
+      notifyLayoutAboutFiles(); // Initialize file status
+    }
   });
 
   onDestroy(() => {
-    document.removeEventListener('filesDroppedOnPage', handleFilesDroppedOnPage);
+    if (browser) {
+      document.removeEventListener('filesDroppedOnPage', handleFilesDroppedOnPage);
+      document.removeEventListener('pdfProcessingProgress', () => {});
+      document.removeEventListener('pdfProcessingComplete', () => {});
+    }
   });
   
   async function handleFilesSelected(event: CustomEvent<{ files: File[] }>) {
     const newFiles = event.detail.files;
     files = [...files, ...newFiles];
     processNewFiles(newFiles);
+    notifyLayoutAboutFiles();
   }
   
   // Common processing function
   async function processNewFiles(newFiles: File[]) {
+    // Initialize progress tracking for new files
+    newFiles.forEach(file => {
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      if (ext === 'pdf') {
+        // Only track PDF files since they have page-by-page progress
+        processingStatus = [...processingStatus, {
+          fileName: file.name,
+          inProgress: true,
+          progress: 0,
+          total: 100 // Will be updated when we know actual page count
+        }];
+      }
+    });
+    
     // Process the new files to extract presentations
     processing = true;
     try {
@@ -55,6 +149,9 @@
       // Show error message to user (in a real app)
     } finally {
       processing = false;
+      
+      // Ensure all files are marked as complete
+      newFiles.forEach(file => completeProcessing(file.name));
     }
   }
   
@@ -67,6 +164,12 @@
     
     // Remove all presentations from that file
     presentations = presentations.filter(presentation => presentation.fileName !== removedFile.name);
+    
+    // Remove processing status
+    processingStatus = processingStatus.filter(status => status.fileName !== removedFile.name);
+    
+    // Notify layout about file status changes
+    notifyLayoutAboutFiles();
   }
   
   function handleReorderPresentations(event: CustomEvent<{ presentations: PresentationGroup[] }>) {
@@ -81,7 +184,9 @@
       
       // Find the MergeControl component and dispatch a custom event
       const event = new CustomEvent('mergeComplete');
-      document.dispatchEvent(event);
+      if (browser) {  
+        document.dispatchEvent(event);
+      }
     } catch (error) {
       console.error('Error merging presentations:', error);
       // Show error message to user (in a real app)
@@ -101,11 +206,12 @@
     <FileUpload on:filesSelected={handleFilesSelected} />
     
     {#if files.length > 0}
-      <FileList files={files} on:removeFile={handleRemoveFile} />
+      <FileList files={files} {processingStatus} on:removeFile={handleRemoveFile} />
     {/if}
   </section>
   
-  {#if processing}
+  <!-- Remove the general spinner when there's file-specific progress -->
+  {#if processing && processingStatus.length === 0}
     <div class="my-8 bg-gray-800 border border-gray-700 rounded-lg p-6 shadow-md">
       <div class="flex items-center justify-center flex-col">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mb-4"></div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  // @ts-ignore: Ignore type errors in this component
   import { createEventDispatcher } from 'svelte';
 
   const dispatch = createEventDispatcher<{
@@ -6,7 +7,15 @@
   }>();
 
   // Define props
-  let { files } = $props<{ files: File[] }>();
+  let { files, processingStatus = [] } = $props<{ 
+    files: File[], 
+    processingStatus: Array<{
+      fileName: string,
+      inProgress: boolean,
+      progress: number,
+      total: number
+    }>
+  }>();
 
   function handleRemoveFile(index: number) {
     dispatch('removeFile', { index });
@@ -47,6 +56,19 @@
     
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
+
+  // Define the type for processing status
+  type FileProcessingStatus = {
+    fileName: string;
+    inProgress: boolean;
+    progress: number;
+    total: number;
+  };
+
+  // Helper function to get the processing status for a file
+  function getProcessingStatus(fileName: string): FileProcessingStatus | undefined {
+    return processingStatus.find(status => status.fileName === fileName);
+  }
 </script>
 
 {#if files.length > 0}
@@ -54,25 +76,44 @@
     <h2 class="text-lg font-medium text-gray-200 mb-3">Uploaded Files</h2>
     <ul class="space-y-2">
       {#each files as file, index}
-        <li class="bg-gray-800 p-3 rounded-lg border border-gray-700 flex items-center justify-between shadow-md">
-          <div class="flex items-center gap-3">
-            <div class="flex-shrink-0">
-              {@html getFileIcon(file.name)}
+        {@const status = getProcessingStatus(file.name) as FileProcessingStatus | undefined}
+        <li class="bg-gray-800 p-3 rounded-lg border border-gray-700 flex flex-col shadow-md">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="flex-shrink-0">
+                {@html getFileIcon(file.name)}
+              </div>
+              <div>
+                <p class="font-medium text-gray-200">{file.name}</p>
+                <p class="text-xs text-gray-400">{formatFileSize(file.size)}</p>
+              </div>
             </div>
-            <div>
-              <p class="font-medium text-gray-200">{file.name}</p>
-              <p class="text-xs text-gray-400">{formatFileSize(file.size)}</p>
-            </div>
+            <button 
+              class="text-red-400 hover:text-red-300" 
+              title="Remove file"
+              onclick={() => handleRemoveFile(index)}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+            </button>
           </div>
-          <button 
-            class="text-red-400 hover:text-red-300" 
-            title="Remove file"
-            onclick={() => handleRemoveFile(index)}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-            </svg>
-          </button>
+          
+          <!-- Individual file progress bar -->
+          {#if status && status.inProgress}
+            <div class="mt-2">
+              <div class="flex items-center justify-between text-xs text-gray-400 mb-1">
+                <span>Processing {status.progress} of {status.total} pages</span>
+                <span>{Math.round((status.progress / status.total) * 100)}%</span>
+              </div>
+              <div class="w-full bg-gray-700 rounded-full h-2.5 overflow-hidden">
+                <div 
+                  class="h-full bg-blue-500 rounded-full transition-all duration-200" 
+                  style={`width: ${(status.progress / status.total) * 100}%`}
+                ></div>
+              </div>
+            </div>
+          {/if}
         </li>
       {/each}
     </ul>

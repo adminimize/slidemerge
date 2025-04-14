@@ -138,6 +138,18 @@ async function processPDF(file: File): Promise<SlideItem[]> {
     if (numPages > 50) {
       console.warn(`PDF has ${numPages} pages, only processing first 50 to avoid memory issues`);
     }
+
+    // Emit an initial progress event with total pages information
+    if (isBrowser) {
+      const event = new CustomEvent('pdfProcessingProgress', {
+        detail: { 
+          fileName: file.name,
+          pageNum: 0,
+          numPages: maxPages
+        }
+      });
+      document.dispatchEvent(event);
+    }
     
     // Create a slide for each page
     const slides: SlideItem[] = [];
@@ -146,6 +158,18 @@ async function processPDF(file: File): Promise<SlideItem[]> {
       try {
         console.log(`Rendering page ${i} of ${file.name}`);
         const page = await pdf.getPage(i);
+
+        // Emit progress event with current page
+        if (isBrowser) {
+          const event = new CustomEvent('pdfProcessingProgress', {
+            detail: { 
+              fileName: file.name,
+              pageNum: i,
+              numPages: maxPages
+            }
+          });
+          document.dispatchEvent(event);
+        }
         
         // Generate thumbnail (smaller size for UI display)
         const thumbnailCanvas = document.createElement('canvas');
@@ -241,10 +265,31 @@ async function processPDF(file: File): Promise<SlideItem[]> {
       }
     }
     
+    // Emit a completion event
+    if (isBrowser) {
+      const event = new CustomEvent('pdfProcessingComplete', {
+        detail: { 
+          fileName: file.name 
+        }
+      });
+      document.dispatchEvent(event);
+    }
+    
     console.log(`Completed processing PDF: ${file.name}, extracted ${slides.length} slides`);
     return slides;
   } catch (error) {
     console.error('Error processing PDF file:', error);
+    
+    // Emit a completion event even on error
+    if (isBrowser) {
+      const event = new CustomEvent('pdfProcessingComplete', {
+        detail: { 
+          fileName: file.name 
+        }
+      });
+      document.dispatchEvent(event);
+    }
+    
     return createPlaceholderSlides(file, 'pdf');
   }
 }

@@ -4,6 +4,7 @@
 	
 	// Add page-level drag and drop handling
 	let dragActive = $state(false);
+	let hasFiles = $state(false); // Add state to track if there are files
 	
 	function handleDragEnter(e: DragEvent) {
 		e.preventDefault();
@@ -46,6 +47,22 @@
 			document.dispatchEvent(event);
 		}
 	}
+
+	// Listen for custom events to update file state
+	// Using custom events for App -> Layout communication
+	function updateHasFiles() {
+		document.addEventListener('filesUpdated', (e: Event) => {
+			const customEvent = e as CustomEvent<{ hasFiles: boolean }>;
+			hasFiles = customEvent.detail.hasFiles;
+		});
+	}
+
+	// Setup event listeners
+	import { onMount, onDestroy } from 'svelte';
+	
+	onMount(() => {
+		updateHasFiles();
+	});
 </script>
 
 <div 
@@ -72,8 +89,8 @@
 		</div>
 	</footer>
 	
-	<!-- This overlay covers the entire page when dragging -->
-	{#if dragActive}
+	<!-- This overlay covers the entire page when dragging only if there are no files -->
+	{#if dragActive && !hasFiles}
 		<div 
 			class="fixed inset-0 bg-gray-800 bg-opacity-70 z-50 flex items-center justify-center transition-all"
 			ondragover={handleDragOver}
@@ -90,6 +107,30 @@
 				<p class="text-gray-300">
 					Your files stay on your device - nothing will be uploaded
 				</p>
+			</div>
+		</div>
+	{/if}
+	
+	<!-- Small corner popup when dragging and there are files -->
+	{#if dragActive && hasFiles}
+		<div 
+			class="fixed bottom-6 right-6 bg-gray-800 bg-opacity-90 z-50 p-4 rounded-lg border-2 border-dashed border-blue-400 shadow-lg transition-all max-w-xs"
+			ondragover={handleDragOver}
+			ondragleave={handleDragLeave}
+			ondrop={handleDrop}
+		>
+			<div class="flex items-center gap-3">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3-3m0 0l3 3m-3-3v12" />
+				</svg>
+				<div>
+					<div class="text-sm font-medium text-white">
+						Drop to add files
+					</div>
+					<p class="text-xs text-gray-300">
+						Local processing only
+					</p>
+				</div>
 			</div>
 		</div>
 	{/if}
