@@ -534,8 +534,8 @@ export async function mergeSlides(slides: SlideItem[]): Promise<Blob> {
     
     console.log('Generating PPTX file as blob...');
     
-    // Generate the PPTX file as a blob
-    const result = await pptx.writeFile({ outputType: 'blob' } as any);
+    // Generate the PPTX file as a blob without triggering download
+    const result = await pptx.write({ outputType: 'blob' } as any);
     let blob = result as unknown as Blob;
     console.log('PPTX blob generated, size:', blob.size, 'type:', blob.type);
     

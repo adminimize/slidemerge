@@ -4,7 +4,7 @@
   import FileList from '$lib/components/FileList.svelte';
   import PresentationManager from '$lib/components/PresentationManager.svelte';
   import MergeControl from '$lib/components/MergeControl.svelte';
-  import { processFilesAsGroups, mergePresentations, downloadPresentation } from '$lib/services/fileProcessor';
+  import { processFilesAsGroups, mergePresentations } from '$lib/services/fileProcessor';
   import type { PresentationGroup } from '$lib/components/PresentationManager.svelte';
   import { onMount, onDestroy } from 'svelte';
   
