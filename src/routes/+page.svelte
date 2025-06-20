@@ -12,6 +12,10 @@
   let presentations = $state<PresentationGroup[]>([]);
   let processing = $state(false);
   let merging = $state(false);
+  
+  // Download state for reactive download link
+  let downloadUrl = $state<string | null>(null);
+  let downloadFilename = $state<string>('');
   // Add state to track processing progress for each file
   let processingStatus = $state<Array<{ 
     fileName: string, 
@@ -217,18 +221,38 @@
       
       console.log('Initiating download with filename:', filename);
       
-      try {
-        await downloadPresentation(mergedPresentation, filename);
-        console.log('Download completed without errors');
-        
-        // Track download with Plausible
-        if (typeof window !== 'undefined' && 'plausible' in window) {
-          (window as any).plausible('Download', { props: { slides: totalSlides } });
+      // Create blob URL and trigger reactive download
+      const blobUrl = URL.createObjectURL(mergedPresentation);
+      downloadUrl = blobUrl;
+      downloadFilename = filename;
+      
+      console.log('Download prepared with filename:', filename);
+      
+      // Trigger download via reactive anchor element
+      setTimeout(() => {
+        const downloadLink = document.getElementById('reactive-download-link') as HTMLAnchorElement;
+        if (downloadLink) {
+          downloadLink.click();
+          console.log('Download triggered via reactive link with filename:', filename);
+          
+          // Track download with Plausible
+          if (typeof window !== 'undefined' && 'plausible' in window) {
+            (window as any).plausible('Download', { props: { slides: totalSlides } });
+          }
+          
+          // Clean up blob URL after download
+          setTimeout(() => {
+            if (downloadUrl) {
+              URL.revokeObjectURL(downloadUrl);
+              downloadUrl = null;
+              downloadFilename = '';
+              console.log('Cleaned up download blob URL');
+            }
+          }, 2000);
+        } else {
+          console.error('Reactive download link not found');
         }
-      } catch (downloadError) {
-        console.error('Download failed:', downloadError);
-        throw downloadError;
-      }
+      }, 200);
       
       // Find the MergeControl component and dispatch a custom event
       const event = new CustomEvent('mergeComplete');
@@ -297,5 +321,16 @@
         Drag and drop PDF documents and images anywhere on this page. All processing happens in your browser - your files never leave your device.
       </p>
     </div>
+  {/if}
+  
+  <!-- Hidden reactive download link -->
+  {#if downloadUrl && downloadFilename}
+    <a 
+      id="reactive-download-link"
+      href={downloadUrl} 
+      download={downloadFilename}
+      style="display: none;"
+      aria-hidden="true"
+    >Download</a>
   {/if}
 </div>
