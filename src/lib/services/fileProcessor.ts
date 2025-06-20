@@ -595,8 +595,11 @@ export async function downloadPresentation(blob: Blob, filename: string): Promis
       saveAs = fileSaverModule.default || fileSaverModule.saveAs;
     }
     
-    // Download directly using the original blob
-    saveAs(blob, filename);
+    // Create a new blob with cache-busting to ensure browser treats it as a new download
+    const newBlob = new Blob([blob], { type: blob.type });
+    
+    // Download using the new blob instance
+    saveAs(newBlob, filename);
     console.log('Download triggered');
   } catch (error) {
     console.error('Error downloading file:', error);

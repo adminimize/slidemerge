@@ -76,6 +76,16 @@
       files = [...files, ...validFiles];
       processNewFiles(validFiles);
       notifyLayoutAboutFiles();
+      
+      // Track file uploads with Plausible
+      if (browser && 'plausible' in window) {
+        (window as any).plausible('Upload', { 
+          props: { 
+            files: validFiles.length,
+            types: validFiles.map(f => f.type.split('/')[1] || 'unknown').join(',')
+          } 
+        });
+      }
     }
   }
 
@@ -200,15 +210,21 @@
         throw new Error('Failed to generate presentation (empty file)');
       }
       
-      // Create a truly unique filename with random component
-      const randomId = Math.floor(Math.random() * 1000000);
-      const filename = `slidemerge_${randomId}.pptx`;
+      // Create a truly unique filename with timestamp and random component
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      const randomId = Math.floor(Math.random() * 10000);
+      const filename = `slidemerge_${timestamp}_${randomId}.pptx`;
       
       console.log('Initiating download with filename:', filename);
       
       try {
         await downloadPresentation(mergedPresentation, filename);
         console.log('Download completed without errors');
+        
+        // Track download with Plausible
+        if (typeof window !== 'undefined' && 'plausible' in window) {
+          (window as any).plausible('Download', { props: { slides: totalSlides } });
+        }
       } catch (downloadError) {
         console.error('Download failed:', downloadError);
         throw downloadError;
