@@ -5,10 +5,6 @@ import type { PresentationGroup } from '../components/PresentationManager.svelte
 const isBrowser = typeof window !== 'undefined';
 
 // We'll use these variables to hold our dynamically imported modules
-let saveAs: (blob: Blob, filename: string) => void;
-let pptxgen: any;
-let XLSX: any;
-let JSZip: any;
 let pdfjsLib: any;
 
 // Dynamically import browser-only modules
@@ -16,18 +12,6 @@ if (isBrowser) {
   // Using the async import immediately executed
   (async () => {
     try {
-      const fileSaverModule = await import('file-saver');
-      saveAs = fileSaverModule.default || fileSaverModule.saveAs;
-
-      const pptxgenModule = await import('pptxgenjs');
-      pptxgen = pptxgenModule.default;
-      
-      const xlsxModule = await import('xlsx');
-      XLSX = xlsxModule.default || xlsxModule;
-      
-      const jszipModule = await import('jszip');
-      JSZip = jszipModule.default;
-      
       // Load PDF.js
       const pdfjs = await import('pdfjs-dist');
       pdfjsLib = pdfjs;
@@ -56,9 +40,6 @@ function isImageFile(fileType: string): boolean {
 }
 
 // Function to check if file is specifically a PNG
-function isPngFile(fileName: string): boolean {
-  return fileName.toLowerCase().endsWith('.png');
-}
 
 // Function to generate a unique ID
 export function generateId(): string {
@@ -318,16 +299,6 @@ function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
 }
 
 // Process PPTX files
-async function processPPTX(file: File): Promise<SlideItem[]> {
-  // For now, we'll just create placeholder slides
-  return createPlaceholderSlides(file, 'pptx');
-}
-
-// Process PPT files (older format)
-async function processPPT(file: File): Promise<SlideItem[]> {
-  // For now, we'll just create placeholder slides
-  return createPlaceholderSlides(file, 'ppt');
-}
 
 // Process image files
 async function processImage(file: File): Promise<SlideItem> {
@@ -477,6 +448,10 @@ export async function mergeSlides(slides: SlideItem[]): Promise<Blob> {
     pptx.layout = 'LAYOUT_16x9';
     pptx.author = 'Slide Merge';
     pptx.title = 'Merged Presentation';
+    // Some versions of pptxgenjs support setting a filename property
+    if ('fileName' in pptx) {
+      (pptx as any).fileName = 'slidemerge_presentation';
+    }
     
     console.log(`Adding ${selectedSlides.length} slides to presentation`);
     
@@ -561,8 +536,16 @@ export async function mergeSlides(slides: SlideItem[]): Promise<Blob> {
     
     // Generate the PPTX file as a blob
     const result = await pptx.writeFile({ outputType: 'blob' } as any);
-    const blob = result as unknown as Blob;
-    console.log('PPTX blob generated, size:', blob.size);
+    let blob = result as unknown as Blob;
+    console.log('PPTX blob generated, size:', blob.size, 'type:', blob.type);
+    
+    // Ensure the blob has the correct MIME type
+    if (!blob.type || blob.type !== 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
+      console.log('Correcting blob MIME type...');
+      blob = new Blob([blob], { 
+        type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' 
+      });
+    }
     
     return blob;
   } catch (error) {
@@ -588,19 +571,24 @@ export async function downloadPresentation(blob: Blob, filename: string): Promis
   try {
     console.log(`Downloading ${filename} (${blob.size} bytes)...`);
     
-    // Dynamically import file-saver if needed
-    if (!saveAs) {
-      console.log('Loading file-saver dynamically');
-      const fileSaverModule = await import('file-saver');
-      saveAs = fileSaverModule.default || fileSaverModule.saveAs;
-    }
+    // Create a new blob with the correct MIME type for PPTX files
+    const newBlob = new Blob([blob], { 
+      type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' 
+    });
     
-    // Create a new blob with cache-busting to ensure browser treats it as a new download
-    const newBlob = new Blob([blob], { type: blob.type });
+    // Use native browser download method for better filename control
+    const url = URL.createObjectURL(newBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     
-    // Download using the new blob instance
-    saveAs(newBlob, filename);
-    console.log('Download triggered');
+    // Clean up the blob URL after a short delay
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+    console.log(`Download triggered with filename: ${filename}`);
   } catch (error) {
     console.error('Error downloading file:', error);
     throw error; 
